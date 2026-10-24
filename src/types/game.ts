@@ -33,6 +33,10 @@ export interface OpponentProfile {
   isFriend?: boolean;
 }
 
+export type UserRole = 'user' | 'vip' | 'moderator' | 'pro' | 'admin';
+
+export type RoleDurationTier = '1_month' | '3_months' | '6_months' | '12_months' | 'permanent';
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -60,6 +64,11 @@ export interface UserProfile {
   isGuest: boolean;
   email?: string;
   isAdmin?: boolean;
+  role?: UserRole;
+  roleTier?: RoleDurationTier;
+  roleExpiresAt?: string;
+  roleGrantedAt?: string;
+  roleGrantedBy?: string;
   lastActiveAt?: string;
 }
 
@@ -167,6 +176,11 @@ export interface PlayerLogEntry {
   draws: number;
   winStreak: number;
   status: 'active' | 'banned';
+  role?: UserRole;
+  roleTier?: RoleDurationTier;
+  roleExpiresAt?: string;
+  roleGrantedAt?: string;
+  roleGrantedBy?: string;
   createdAt: string;
   lastActiveAt: string;
 }
@@ -182,4 +196,27 @@ export interface AdminMatchLog {
   gameMode: string;
   roomCode?: string;
   createdAt: string;
+}
+
+export interface PlayerActionLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  action:
+    | 'login'
+    | 'register'
+    | 'match_played'
+    | 'stage_cleared'
+    | 'puzzle_solved'
+    | 'item_purchased'
+    | 'role_granted'
+    | 'role_revoked'
+    | 'account_banned'
+    | 'account_unbanned'
+    | 'coins_granted';
+  actionLabel: string;
+  details: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
 }

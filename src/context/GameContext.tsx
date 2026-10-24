@@ -8,6 +8,8 @@ import {
   PuzzleDefinition,
   DailyQuest,
   GameNotification,
+  PlayerLogEntry,
+  PlayerActionLog,
 } from '../types/game';
 import { INITIAL_DAILY_QUESTS } from '../data/questsAndShop';
 import { INITIAL_NOTIFICATIONS } from '../data/notifications';
@@ -34,11 +36,23 @@ interface GameContextType {
   markAllNotificationsRead: () => void;
   claimNotificationReward: (id: string) => void;
   broadcastNotification: (notif: GameNotification) => void;
-  // Modals
+  // Modals & Admin
   showAuthModal: boolean;
   setShowAuthModal: (show: boolean) => void;
   showAdminModal: boolean;
   setShowAdminModal: (show: boolean) => void;
+  adminTab: 'overview' | 'players' | 'roles' | 'audit_logs' | 'matches' | 'broadcast';
+  adminTargetPlayer: PlayerLogEntry | null;
+  openAdminDashboard: (
+    tab?: 'overview' | 'players' | 'roles' | 'audit_logs' | 'matches' | 'broadcast',
+    targetPlayer?: PlayerLogEntry | null
+  ) => void;
+  logPlayerAction: (
+    action: PlayerActionLog['action'],
+    actionLabel: string,
+    details: string,
+    metadata?: Record<string, any>
+  ) => void;
   showNotificationModal: boolean;
   setShowNotificationModal: (show: boolean) => void;
   showFriendModal: boolean;
@@ -149,6 +163,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Modals state
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [adminTab, setAdminTab] = useState<'overview' | 'players' | 'roles' | 'audit_logs' | 'matches' | 'broadcast'>('overview');
+  const [adminTargetPlayer, setAdminTargetPlayer] = useState<PlayerLogEntry | null>(null);
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
   const [showFriendModal, setShowFriendModal] = useState<boolean>(false);
 
@@ -159,6 +175,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user.email === 'leminhhaukrb16@gmail.com' ||
     auth.currentUser?.email === 'leminhhaukrb16@gmail.com' ||
     user.isAdmin === true;
+
+  const openAdminDashboard = (
+    tab: 'overview' | 'players' | 'roles' | 'audit_logs' | 'matches' | 'broadcast' = 'overview',
+    targetPlayer: PlayerLogEntry | null = null
+  ) => {
+    setAdminTab(tab);
+    setAdminTargetPlayer(targetPlayer);
+    setShowAdminModal(true);
+    soundManager.playButtonClick();
+  };
+
+  const logPlayerAction = (
+    action: PlayerActionLog['action'],
+    actionLabel: string,
+    details: string,
+    metadata?: Record<string, any>
+  ) => {
+    const newLog: PlayerActionLog = {
+      id: 'log_' + Date.now(),
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      action,
+      actionLabel,
+      details,
+      timestamp: new Date().toISOString(),
+      metadata,
+    };
+    try {
+      setDoc(doc(db, 'player_action_logs', newLog.id), newLog).catch(() => {});
+    } catch {}
+  };
 
   // Sync to local storage
   useEffect(() => {
@@ -666,6 +714,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShowAuthModal,
         showAdminModal,
         setShowAdminModal,
+        adminTab,
+        adminTargetPlayer,
+        openAdminDashboard,
+        logPlayerAction,
         showNotificationModal,
         setShowNotificationModal,
         showFriendModal,

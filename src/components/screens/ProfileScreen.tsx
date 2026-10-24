@@ -1,7 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { User, Trophy, Shield, Star, Sparkles, Award, ArrowLeft, LogOut } from 'lucide-react';
+import {
+  User,
+  Trophy,
+  Shield,
+  Star,
+  Sparkles,
+  Award,
+  ArrowLeft,
+  LogOut,
+  Crown,
+  Database,
+  History,
+  Users,
+  CheckCircle2,
+  ExternalLink,
+  Filter,
+  RefreshCw,
+  Search,
+  Lock,
+} from 'lucide-react';
 import { soundManager } from '../../engine/audioEngine';
+import { INITIAL_DEMO_ACTION_LOGS } from '../../data/demoActionLogs';
+import { db } from '../../lib/firebase';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { PlayerActionLog } from '../../types/game';
 
 const AVATAR_OPTIONS = [
   'https://api.dicebear.com/7.x/bottts/svg?seed=CaroPlayerMaster&backgroundColor=0ea5e9',
@@ -15,10 +38,52 @@ const AVATAR_OPTIONS = [
 ];
 
 export const ProfileScreen: React.FC = () => {
-  const { user, updateUserAvatar, setActiveTab, logout } = useGame();
+  const { user, updateUserAvatar, setActiveTab, logout, isAdmin, openAdminDashboard } = useGame();
   const [selectedAvatar, setSelectedAvatar] = useState(user.avatar);
   const [nameInput, setNameInput] = useState(user.name);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Admin audit log preview state (only used by admin)
+  const [recentLogs, setRecentLogs] = useState<PlayerActionLog[]>(INITIAL_DEMO_ACTION_LOGS);
+  const [logFilter, setLogFilter] = useState<'all' | 'role_granted' | 'login' | 'match_played'>('all');
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
+  useEffect(() => {
+    if (isAdmin) {
+      // Fetch latest audit logs from Firestore
+      const fetchLogs = async () => {
+        setIsLoadingLogs(true);
+        try {
+          const snap = await getDocs(collection(db, 'player_action_logs'));
+          if (!snap.empty) {
+            const list: PlayerActionLog[] = [];
+            snap.forEach(d => {
+              const data = d.data();
+              list.push({
+                id: d.id,
+                userId: data.userId || 'system',
+                userName: data.userName || 'Kỳ Thủ',
+                userEmail: data.userEmail,
+                action: data.action || 'login',
+                actionLabel: data.actionLabel || data.action || 'Thao tác',
+                details: data.details || '',
+                timestamp: data.timestamp || new Date().toISOString(),
+                metadata: data.metadata,
+              });
+            });
+            if (list.length > 0) {
+              setRecentLogs([...list, ...INITIAL_DEMO_ACTION_LOGS.filter(l => !list.some(x => x.id === l.id))]);
+            }
+          }
+        } catch (e) {
+          console.warn('Profile admin fetch logs:', e);
+        } finally {
+          setIsLoadingLogs(false);
+        }
+      };
+      fetchLogs();
+    }
+  }, [isAdmin]);
 
   const totalMatches = user.wins + user.losses + user.draws;
   const winRate = totalMatches > 0 ? Math.round((user.wins / totalMatches) * 100) : 0;
@@ -159,6 +224,200 @@ export const ProfileScreen: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* EXCLUSIVE ADMIN DATABASE MANAGEMENT & AUDIT LOGS SECTION (ONLY FOR ADMIN) */}
+      {isAdmin && (
+        <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-amber-950/20 to-slate-900 border-2 border-amber-500/50 p-4 sm:p-5 shadow-2xl relative overflow-hidden flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-amber-500/20 pb-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/40 shadow-inner shrink-0">
+                <Crown size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black text-white tracking-tight">
+                    Trung Tâm Quản Lý Database & Phân Quyền
+                  </h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold uppercase">
+                    Chỉ Quản Trị Viên
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Đặc quyền tài khoản: <strong className="text-amber-400 font-mono">leminhhaukrb16@gmail.com</strong> · Kiểm soát toàn bộ người chơi và lịch sử thao tác
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                openAdminDashboard('overview');
+                soundManager.playButtonClick();
+              }}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all shrink-0"
+            >
+              <Database size={15} />
+              <span>Mở Bảng Điều Khiển Database</span>
+            </button>
+          </div>
+
+          {/* 4 Feature Action Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button
+              onClick={() => {
+                openAdminDashboard('roles');
+                soundManager.playButtonClick();
+              }}
+              className="p-3 rounded-2xl bg-slate-950/70 hover:bg-slate-950 border border-amber-500/30 hover:border-amber-400 text-left transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 mb-2 group-hover:scale-105 transition-transform">
+                  <Shield size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Phân Quyền & Cấp Hạn</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">1, 3, 6, 12 tháng, vĩnh viễn</div>
+              </div>
+              <div className="text-[10px] font-bold text-amber-400 flex items-center justify-between pt-2 border-t border-slate-800/80 mt-2">
+                <span>Cấp Đặc Quyền</span>
+                <span>→</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                openAdminDashboard('audit_logs');
+                soundManager.playButtonClick();
+              }}
+              className="p-3 rounded-2xl bg-slate-950/70 hover:bg-slate-950 border border-teal-500/30 hover:border-teal-400 text-left transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30 mb-2 group-hover:scale-105 transition-transform">
+                  <History size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Lịch Sử Thao Tác</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Theo dõi từng hành vi</div>
+              </div>
+              <div className="text-[10px] font-bold text-teal-400 flex items-center justify-between pt-2 border-t border-slate-800/80 mt-2">
+                <span>Xem Toàn Bộ Log</span>
+                <span>→</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                openAdminDashboard('players');
+                soundManager.playButtonClick();
+              }}
+              className="p-3 rounded-2xl bg-slate-950/70 hover:bg-slate-950 border border-cyan-500/30 hover:border-cyan-400 text-left transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 mb-2 group-hover:scale-105 transition-transform">
+                  <Users size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Quản Lý Người Chơi</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Sửa ELO, ban/unban, xu</div>
+              </div>
+              <div className="text-[10px] font-bold text-cyan-400 flex items-center justify-between pt-2 border-t border-slate-800/80 mt-2">
+                <span>Tra Cứu & Xử Lý</span>
+                <span>→</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                openAdminDashboard('broadcast');
+                soundManager.playButtonClick();
+              }}
+              className="p-3 rounded-2xl bg-slate-950/70 hover:bg-slate-950 border border-yellow-500/30 hover:border-yellow-400 text-left transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-yellow-500/20 text-yellow-400 flex items-center justify-center border border-yellow-500/30 mb-2 group-hover:scale-105 transition-transform">
+                  <Sparkles size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Phát Sóng Thông Báo</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Bản vá & quà toàn server</div>
+              </div>
+              <div className="text-[10px] font-bold text-yellow-400 flex items-center justify-between pt-2 border-t border-slate-800/80 mt-2">
+                <span>Gửi Thông Báo</span>
+                <span>→</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Embedded Live Audit Trail Feed */}
+          <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 flex flex-col gap-2.5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <History size={14} className="text-teal-400" />
+                <span>Nhật Ký Thao Tác Người Chơi Trực Tiếp (Live Audit Feed)</span>
+              </h4>
+
+              {/* Filter chips */}
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {[
+                  { id: 'all', label: 'Tất cả' },
+                  { id: 'role_granted', label: 'Cấp quyền' },
+                  { id: 'login', label: 'Đăng nhập' },
+                  { id: 'match_played', label: 'Trận đấu' },
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setLogFilter(f.id as any)}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors ${
+                      logFilter === f.id
+                        ? 'bg-amber-500 text-slate-950 font-black'
+                        : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-800/60 max-h-60 overflow-y-auto no-scrollbar">
+              {recentLogs
+                .filter(l => logFilter === 'all' || l.action === logFilter)
+                .slice(0, 6)
+                .map(log => {
+                  const isRole = log.action === 'role_granted' || log.action === 'role_revoked';
+                  return (
+                    <div key={log.id} className="py-2.5 flex items-start justify-between gap-2 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase font-mono ${
+                              isRole
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : log.action === 'login'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                            }`}
+                          >
+                            {log.actionLabel}
+                          </span>
+                          <strong className="text-white truncate">{log.userName}</strong>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                          {log.details}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => openAdminDashboard('audit_logs')}
+                        className="text-[10px] font-semibold text-amber-400 hover:underline shrink-0 pt-0.5"
+                      >
+                        Chi tiết
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Avatar Picker Strip */}
       <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-4">

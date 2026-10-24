@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "User profile containing player statistics, ELO ranking, coins, and unlocks",
+      "description": "User profile containing player statistics, ELO ranking, coins, role delegation, and unlocks",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
@@ -21,6 +21,11 @@
         "draws": { "type": "number" },
         "winStreak": { "type": "number" },
         "status": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["user", "vip", "moderator", "pro", "admin"] },
+        "roleExpiresAt": { "type": "string", "maxLength": 50 },
+        "roleGrantedAt": { "type": "string", "format": "date-time" },
+        "roleGrantedBy": { "type": "string", "maxLength": 150 },
+        "roleTier": { "type": "string", "enum": ["1_month", "3_months", "6_months", "12_months", "permanent"] },
         "equippedTheme": { "type": "string", "maxLength": 50 },
         "equippedSkin": { "type": "string", "maxLength": 50 },
         "createdAt": { "type": "string", "format": "date-time" },
@@ -62,18 +67,20 @@
       },
       "required": ["id", "title", "content", "type"]
     },
-    "PlayerSession": {
-      "title": "PlayerSession",
-      "description": "Login and gameplay session records for player activity tracking",
+    "PlayerActionLog": {
+      "title": "PlayerActionLog",
+      "description": "Comprehensive audit log of player operations, game activity, and admin privilege grants",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
         "userId": { "type": "string", "maxLength": 128 },
         "userName": { "type": "string", "maxLength": 100 },
+        "userEmail": { "type": "string", "maxLength": 150 },
         "action": { "type": "string", "maxLength": 50 },
+        "details": { "type": "string", "maxLength": 1000 },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "action"]
+      "required": ["id", "userId", "action", "details"]
     }
   },
   "firestore": {
@@ -89,9 +96,9 @@
       "schema": "SystemNotification",
       "description": "System notices and update logs accessible by all users and managed by Admin"
     },
-    "/player_sessions/{sessionId}": {
-      "schema": "PlayerSession",
-      "description": "Player access logs viewable exclusively by Admin"
+    "/player_action_logs/{logId}": {
+      "schema": "PlayerActionLog",
+      "description": "Player operations and action audit logs managed exclusively by Admin"
     }
   }
 }

@@ -34,6 +34,8 @@ export const TopNavBar: React.FC = () => {
     setShowAuthModal,
     showAdminModal,
     setShowAdminModal,
+    adminTab,
+    adminTargetPlayer,
     showNotificationModal,
     setShowNotificationModal,
     showFriendModal,
@@ -254,6 +256,8 @@ export const TopNavBar: React.FC = () => {
         <AdminDashboardModal
           onClose={() => setShowAdminModal(false)}
           onBroadcastNotification={broadcastNotification}
+          initialTab={adminTab}
+          initialPlayerForRole={adminTargetPlayer}
         />
       )}
     </>
