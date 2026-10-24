@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, AIDifficulty, GameMode, OpponentProfile, CampaignStage, PuzzleDefinition, DailyQuest } from '../types/game';
 import { INITIAL_DAILY_QUESTS } from '../data/questsAndShop';
 import { soundManager } from '../engine/audioEngine';
+import { auth, googleProvider, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { signInWithPopup, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface GameContextType {
   user: UserProfile;
@@ -14,6 +17,10 @@ interface GameContextType {
   quests: DailyQuest[];
   claimQuestReward: (questId: string) => void;
   recordQuestProgress: (questId: string, amount?: number) => void;
+  showAuthModal: boolean;
+  setShowAuthModal: (show: boolean) => void;
+  loginWithGoogle: () => Promise<boolean>;
+  logout: () => Promise<void>;
   // Active match launch
   activeGameSession: {
     mode: GameMode;
@@ -97,6 +104,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeTab, setActiveTab] = useState<'home' | 'campaign' | 'multiplayer' | 'puzzles' | 'shop' | 'profile'>('home');
   const [isSoundMuted, setIsSoundMuted] = useState<boolean>(false);
   const [deviceViewMode, setDeviceViewMode] = useState<'mobile' | 'expanded'>('expanded');
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
 
   const [activeGameSession, setActiveGameSession] = useState<GameContextType['activeGameSession']>(null);
 
@@ -113,10 +121,116 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   }, [quests]);
 
+  // Sync authenticated user data to Firestore
+  useEffect(() => {
+    if (!user.isGuest && user.id && !user.id.startsWith('usr_guest_')) {
+      const userRef = doc(db, 'users', user.id);
+      const payload = {
+        id: user.id,
+        name: user.name,
+        title: user.title,
+        avatar: user.avatar,
+        elo: user.elo,
+        coins: user.coins,
+        gems: user.gems,
+        stars: user.stars,
+        level: user.level,
+        xp: user.xp,
+        wins: user.wins,
+        losses: user.losses,
+        draws: user.draws,
+        winStreak: user.winStreak,
+        equippedTheme: user.equippedTheme,
+        equippedSkin: user.equippedSkin,
+        updatedAt: new Date().toISOString(),
+      };
+      setDoc(userRef, payload, { merge: true }).catch((err) => {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${user.id}`);
+      });
+    }
+  }, [user.coins, user.gems, user.stars, user.level, user.xp, user.elo, user.wins, user.losses, user.draws, user.equippedTheme, user.equippedSkin]);
+
   const toggleSound = () => {
     const next = !isSoundMuted;
     setIsSoundMuted(next);
     soundManager.setMuted(next);
+  };
+
+  const loginWithGoogle = async (): Promise<boolean> => {
+    soundManager.playButtonClick();
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const fbUser = result.user;
+      if (fbUser) {
+        const userRef = doc(db, 'users', fbUser.uid);
+        try {
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            setUser(prev => ({
+              ...prev,
+              ...data,
+              id: fbUser.uid,
+              name: data.name || fbUser.displayName || prev.name,
+              avatar: fbUser.photoURL || data.avatar || prev.avatar,
+              email: fbUser.email || undefined,
+              isGuest: false,
+            }));
+          } else {
+            // First time registration: create Firestore document
+            const newDoc = {
+              id: fbUser.uid,
+              name: fbUser.displayName || 'Kỳ Thủ Google',
+              title: user.title,
+              avatar: fbUser.photoURL || user.avatar,
+              elo: user.elo,
+              coins: user.coins,
+              gems: user.gems,
+              stars: user.stars,
+              level: user.level,
+              xp: user.xp,
+              wins: user.wins,
+              losses: user.losses,
+              draws: user.draws,
+              winStreak: user.winStreak,
+              equippedTheme: user.equippedTheme,
+              equippedSkin: user.equippedSkin,
+              updatedAt: new Date().toISOString(),
+            };
+            await setDoc(userRef, newDoc);
+            setUser(prev => ({
+              ...prev,
+              ...newDoc,
+              email: fbUser.email || undefined,
+              isGuest: false,
+            }));
+          }
+        } catch (fetchErr) {
+          handleFirestoreError(fetchErr, OperationType.GET, `users/${fbUser.uid}`);
+        }
+        soundManager.playRewardSound();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn('Google sign-in error or cancelled:', error);
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    soundManager.playButtonClick();
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Sign out error', e);
+    }
+    setUser({
+      ...DEFAULT_USER,
+      id: 'usr_guest_' + Math.floor(Math.random() * 10000),
+      isGuest: true,
+      email: undefined,
+    });
   };
 
   const addCoins = (amount: number) => {
@@ -352,7 +466,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const startPvPMatch = (timeLimitSec: number) => {
-    // Simulated live online player matching
     const randomOpponents = [
       { name: 'KỳVương99', title: 'Chiến tướng Hà Nội', elo: user.elo + Math.floor(Math.random() * 80) - 40, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=KỳVương99' },
       { name: 'SơnTùngCaro', title: 'Bất bại Sài Gòn', elo: user.elo + Math.floor(Math.random() * 60) - 30, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=SonTungCaro' },
@@ -394,6 +507,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         quests,
         claimQuestReward,
         recordQuestProgress,
+        showAuthModal,
+        setShowAuthModal,
+        loginWithGoogle,
+        logout,
         activeGameSession,
         startAiMatch,
         startCampaignStage,

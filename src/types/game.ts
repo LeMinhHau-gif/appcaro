@@ -57,6 +57,7 @@ export interface UserProfile {
   solvedPuzzles: string[];
   lastSpinDate?: string;
   isGuest: boolean;
+  email?: string;
 }
 
 export interface CampaignStage {

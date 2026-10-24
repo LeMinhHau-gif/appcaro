@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { User, Trophy, Shield, Star, LogIn, LogOut, Check, Sparkles, Award, ArrowLeft } from 'lucide-react';
-import { AuthModal } from '../modals/AuthModal';
+import { User, Trophy, Shield, Star, Sparkles, Award, ArrowLeft, LogOut } from 'lucide-react';
 import { soundManager } from '../../engine/audioEngine';
-import { auth, googleProvider, handleFirestoreError, OperationType } from '../../lib/firebase';
-import { signInWithPopup, signOut } from 'firebase/auth';
 
 const AVATAR_OPTIONS = [
   'https://api.dicebear.com/7.x/bottts/svg?seed=CaroPlayerMaster&backgroundColor=0ea5e9',
@@ -18,8 +15,7 @@ const AVATAR_OPTIONS = [
 ];
 
 export const ProfileScreen: React.FC = () => {
-  const { user, updateUserAvatar, setActiveTab } = useGame();
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user, updateUserAvatar, setActiveTab, logout } = useGame();
   const [selectedAvatar, setSelectedAvatar] = useState(user.avatar);
   const [nameInput, setNameInput] = useState(user.name);
   const [isEditing, setIsEditing] = useState(false);
@@ -42,30 +38,6 @@ export const ProfileScreen: React.FC = () => {
     }
   };
 
-  const handleFirebaseGoogleLogin = async () => {
-    soundManager.playButtonClick();
-    try {
-      const res = await signInWithPopup(auth, googleProvider);
-      if (res.user) {
-        updateUserAvatar(
-          res.user.photoURL || user.avatar,
-          res.user.displayName || 'Kỳ Thủ ' + res.user.uid.slice(0, 5)
-        );
-      }
-    } catch (err) {
-      console.warn('Google sign-in popup closed or cancelled:', err);
-    }
-  };
-
-  const handleFirebaseSignOut = async () => {
-    soundManager.playButtonClick();
-    try {
-      await signOut(auth);
-    } catch (err) {
-      console.warn('Sign out error', err);
-    }
-  };
-
   const achievements = [
     { id: 'a1', title: 'Nhập Môn Kỳ Đạo', desc: 'Đấu ván đầu tiên', unlocked: totalMatches >= 1, icon: Trophy },
     { id: 'a2', title: 'Cao Thủ Chiến Đấu', desc: 'Thắng 5 ván cờ', unlocked: user.wins >= 5, icon: Award },
@@ -85,7 +57,8 @@ export const ProfileScreen: React.FC = () => {
               setActiveTab('home');
               soundManager.playButtonClick();
             }}
-            className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+            className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            title="Quay lại"
           >
             <ArrowLeft size={16} />
           </button>
@@ -94,26 +67,38 @@ export const ProfileScreen: React.FC = () => {
               <User size={20} className="text-teal-400" />
               <span>Hồ Sơ Kỳ Thủ</span>
             </h2>
-            <p className="text-xs text-slate-400">Thông tin cá nhân, chỉ số thành tích & đồng bộ đám mây</p>
+            <p className="text-xs text-slate-400">Thông tin cá nhân & chỉ số thành tích thi đấu</p>
           </div>
         </div>
+
+        {/* Subtle Sign out button if user is authenticated with Google */}
+        {!user.isGuest && (
+          <button
+            onClick={logout}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-rose-300 text-xs font-semibold flex items-center gap-1.5 border border-slate-700/80 transition-colors"
+            title="Đăng xuất khỏi tài khoản"
+          >
+            <LogOut size={13} />
+            <span>Đăng xuất</span>
+          </button>
+        )}
       </div>
 
-      {/* Main Profile Card */}
-      <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-xl flex flex-col sm:flex-row items-center gap-5">
-        <div className="relative">
+      {/* Main Profile Card (Clean & Compact) */}
+      <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-xl flex flex-col sm:flex-row items-center gap-4">
+        <div className="relative shrink-0">
           <img
             src={user.avatar}
             alt={user.name}
-            className="w-20 h-20 rounded-3xl bg-slate-800 border-2 border-teal-500/50 object-cover shadow-lg"
+            className="w-18 h-18 sm:w-20 sm:h-20 rounded-3xl bg-slate-800 border-2 border-teal-500/50 object-cover shadow-lg"
           />
           <span className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full bg-teal-500 text-slate-950 font-black font-mono text-[10px] shadow">
             Lv.{user.level}
           </span>
         </div>
 
-        <div className="flex-1 text-center sm:text-left min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+        <div className="flex-1 text-center sm:text-left min-w-0 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1 justify-center sm:justify-start">
             {isEditing ? (
               <form onSubmit={handleSaveName} className="flex items-center gap-2">
                 <input
@@ -132,7 +117,7 @@ export const ProfileScreen: React.FC = () => {
               </form>
             ) : (
               <div className="flex items-center justify-center sm:justify-start gap-2">
-                <h3 className="text-lg font-bold text-white truncate">{user.name}</h3>
+                <h3 className="text-base sm:text-lg font-bold text-white truncate">{user.name}</h3>
                 <button
                   onClick={() => setIsEditing(true)}
                   className="text-xs text-teal-400 hover:underline"
@@ -144,18 +129,25 @@ export const ProfileScreen: React.FC = () => {
             <span className="text-xs text-amber-400 font-semibold">{user.title}</span>
           </div>
 
+          {/* Quick stats inline */}
           <div className="flex items-center justify-center sm:justify-start gap-2 text-xs text-slate-400 mb-3">
             <span className="font-mono text-cyan-400 font-bold">{user.elo} ELO</span>
             <span>·</span>
             <span className="text-amber-400">{user.coins} Xu</span>
             <span>·</span>
             <span className="text-rose-400">{user.gems} Ngọc</span>
+            {user.email && (
+              <>
+                <span>·</span>
+                <span className="text-slate-400 truncate max-w-[140px] font-mono text-[11px]">{user.email}</span>
+              </>
+            )}
           </div>
 
           {/* Level XP Progress Bar */}
-          <div className="w-full max-w-sm">
+          <div className="w-full max-w-sm mx-auto sm:mx-0">
             <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-              <span>Kinh nghiệm</span>
+              <span>Kinh nghiệm cấp độ</span>
               <span className="font-mono tabular-nums">{user.xp} / {user.xpToNextLevel} XP</span>
             </div>
             <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -166,59 +158,30 @@ export const ProfileScreen: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Cloud Auth Sync Button */}
-        <div className="shrink-0 flex flex-col gap-2">
-          {auth.currentUser ? (
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-teal-500/10 border border-teal-500/30">
-              <span className="text-[11px] font-bold text-teal-400 flex items-center gap-1">
-                <Check size={13} />
-                Đã đồng bộ Firebase
-              </span>
-              <span className="text-[10px] text-slate-400 truncate max-w-[150px]">
-                {auth.currentUser.email || auth.currentUser.displayName}
-              </span>
-              <button
-                onClick={handleFirebaseSignOut}
-                className="mt-1 px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold flex items-center gap-1"
-              >
-                <LogOut size={12} />
-                Đăng xuất
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleFirebaseGoogleLogin}
-              className="px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"
-            >
-              <LogIn size={15} />
-              <span>Đăng Nhập Firebase</span>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Avatar Picker Strip */}
       <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-4">
-        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">
+        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
           Chọn Avatar Đại Diện
         </h4>
-        <div className="flex items-center gap-3 overflow-x-auto pb-2 no-scrollbar">
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-1 no-scrollbar">
           {AVATAR_OPTIONS.map((url, idx) => {
             const isSelected = user.avatar === url;
             return (
               <button
                 key={idx}
                 onClick={() => handleSelectAvatar(url)}
-                className={`relative w-12 h-12 rounded-2xl p-0.5 border transition-all shrink-0 ${
+                className={`relative w-11 h-11 rounded-2xl p-0.5 border transition-all shrink-0 ${
                   isSelected
                     ? 'border-teal-400 ring-2 ring-teal-400/50 shadow-md'
                     : 'border-slate-800 hover:border-slate-600 opacity-70 hover:opacity-100'
                 }`}
+                aria-label={`Chọn avatar ${idx + 1}`}
               >
                 <img src={url} alt={`Avatar ${idx}`} className="w-full h-full rounded-xl object-cover" />
                 {isSelected && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-400 text-slate-950 flex items-center justify-center text-[9px] font-bold">
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-teal-400 text-slate-950 flex items-center justify-center text-[8px] font-bold">
                     ✓
                   </span>
                 )}
@@ -279,13 +242,13 @@ export const ProfileScreen: React.FC = () => {
                 }`}
               >
                 <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${
                     item.unlocked
                       ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                       : 'bg-slate-800 text-slate-600'
                   }`}
                 >
-                  <Icon size={20} />
+                  <Icon size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
@@ -301,9 +264,6 @@ export const ProfileScreen: React.FC = () => {
           })}
         </div>
       </div>
-
-      {/* Auth Modal */}
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   );
 };
