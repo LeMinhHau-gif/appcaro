@@ -1,9 +1,24 @@
 import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Coins, Gem, Volume2, VolumeX, Sparkles, Award, Smartphone, Monitor, LogIn } from 'lucide-react';
+import {
+  Coins,
+  Gem,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  Award,
+  Smartphone,
+  Monitor,
+  Bell,
+  Users,
+  Crown,
+} from 'lucide-react';
 import { WheelSpinModal } from '../modals/WheelSpinModal';
 import { DailyQuestsModal } from '../modals/DailyQuestsModal';
 import { AuthModal } from '../modals/AuthModal';
+import { NotificationModal } from '../modals/NotificationModal';
+import { FriendMatchModal } from '../modals/FriendMatchModal';
+import { AdminDashboardModal } from '../modals/AdminDashboardModal';
 import { soundManager } from '../../engine/audioEngine';
 
 export const TopNavBar: React.FC = () => {
@@ -17,16 +32,31 @@ export const TopNavBar: React.FC = () => {
     setActiveTab,
     showAuthModal,
     setShowAuthModal,
+    showAdminModal,
+    setShowAdminModal,
+    showNotificationModal,
+    setShowNotificationModal,
+    showFriendModal,
+    setShowFriendModal,
+    notifications,
+    unreadNotificationsCount,
+    markNotificationRead,
+    markAllNotificationsRead,
+    claimNotificationReward,
+    broadcastNotification,
+    startFriendRoomMatch,
+    startPassAndPlayMatch,
+    isAdmin,
   } = useGame();
 
   const [showWheel, setShowWheel] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
 
-  const hasUnclaimed = quests.some(q => q.isCompleted && !q.isClaimed);
+  const hasUnclaimedQuests = quests.some(q => q.isCompleted && !q.isClaimed);
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-2">
+      <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-2.5 sm:px-4 py-2">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
           {/* Left: User Profile Pill */}
           <button
@@ -43,7 +73,7 @@ export const TopNavBar: React.FC = () => {
               className="w-7 h-7 rounded-full bg-slate-900 object-cover border border-teal-500/40"
             />
             <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-slate-100 truncate max-w-[80px] sm:max-w-[110px]">
+              <span className="text-[11px] font-bold text-slate-100 truncate max-w-[70px] sm:max-w-[105px]">
                 {user.name}
               </span>
               <span className="text-[9px] font-mono text-teal-400">Lv.{user.level} · {user.elo} ELO</span>
@@ -65,8 +95,54 @@ export const TopNavBar: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Actions & Google Login */}
+          {/* Right: Actions & Tools */}
           <div className="flex items-center gap-1 sm:gap-1.5">
+            {/* Admin Console Button (Exclusive to Admin) */}
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setShowAdminModal(true);
+                  soundManager.playButtonClick();
+                }}
+                className="h-8 px-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-[11px] flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all shrink-0"
+                title="Bảng điều khiển Quản trị viên (Chỉ Admin)"
+              >
+                <Crown size={14} className="fill-slate-950" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
+
+            {/* Friend Match Button */}
+            <button
+              onClick={() => {
+                setShowFriendModal(true);
+                soundManager.playButtonClick();
+              }}
+              className="p-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition-colors"
+              title="Đấu Với Bạn Bè (Mã phòng / Cùng máy)"
+              aria-label="Đấu bạn bè"
+            >
+              <Users size={15} />
+            </button>
+
+            {/* Notification Bell Button */}
+            <button
+              onClick={() => {
+                setShowNotificationModal(true);
+                soundManager.playButtonClick();
+              }}
+              className="relative p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+              title="Thông báo cập nhật & sự kiện"
+              aria-label="Thông báo"
+            >
+              <Bell size={15} />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-400 text-slate-950 text-[9px] font-black font-mono flex items-center justify-center ring-2 ring-slate-900">
+                  {unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+
             {/* Google Sign In Button if Guest */}
             {user.isGuest ? (
               <button
@@ -74,7 +150,7 @@ export const TopNavBar: React.FC = () => {
                   setShowAuthModal(true);
                   soundManager.playButtonClick();
                 }}
-                className="h-8 px-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-[11px] flex items-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+                className="h-8 px-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-[11px] flex items-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
                 title="Đăng ký / Đăng nhập tài khoản Google"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
@@ -123,12 +199,12 @@ export const TopNavBar: React.FC = () => {
               aria-label="Nhiệm vụ hàng ngày"
             >
               <Award size={15} />
-              {hasUnclaimed && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-teal-400 animate-pulse ring-2 ring-slate-900" />
+              {hasUnclaimedQuests && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-teal-400 animate-pulse ring-2 ring-slate-900" />
               )}
             </button>
 
-            {/* Device Mode Toggle (Mobile vs Expanded) */}
+            {/* Device Mode Toggle */}
             <button
               onClick={() => {
                 setDeviceViewMode(deviceViewMode === 'mobile' ? 'expanded' : 'mobile');
@@ -158,6 +234,28 @@ export const TopNavBar: React.FC = () => {
       {showWheel && <WheelSpinModal onClose={() => setShowWheel(false)} />}
       {showQuests && <DailyQuestsModal onClose={() => setShowQuests(false)} />}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {showNotificationModal && (
+        <NotificationModal
+          notifications={notifications}
+          onClose={() => setShowNotificationModal(false)}
+          onMarkRead={markNotificationRead}
+          onMarkAllRead={markAllNotificationsRead}
+          onClaimReward={claimNotificationReward}
+        />
+      )}
+      {showFriendModal && (
+        <FriendMatchModal
+          onClose={() => setShowFriendModal(false)}
+          onStartRoomMatch={startFriendRoomMatch}
+          onStartPassAndPlay={startPassAndPlayMatch}
+        />
+      )}
+      {showAdminModal && (
+        <AdminDashboardModal
+          onClose={() => setShowAdminModal(false)}
+          onBroadcastNotification={broadcastNotification}
+        />
+      )}
     </>
   );
 };

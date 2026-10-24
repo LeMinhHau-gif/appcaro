@@ -4,7 +4,7 @@ export type BoardGrid = CellValue[][]; // 15x15
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard' | 'grandmaster';
 
-export type GameMode = 'ai' | 'pvp' | 'campaign' | 'puzzle' | 'practice';
+export type GameMode = 'ai' | 'pvp' | 'campaign' | 'puzzle' | 'practice' | 'friend' | 'pass_and_play';
 
 export interface Move {
   row: number;
@@ -30,6 +30,7 @@ export interface OpponentProfile {
   difficulty: AIDifficulty;
   isAi: boolean;
   country?: string;
+  isFriend?: boolean;
 }
 
 export interface UserProfile {
@@ -58,6 +59,8 @@ export interface UserProfile {
   lastSpinDate?: string;
   isGuest: boolean;
   email?: string;
+  isAdmin?: boolean;
+  lastActiveAt?: string;
 }
 
 export interface CampaignStage {
@@ -135,4 +138,48 @@ export interface BlunderAnalysisItem {
   evalDelta: number;
   description: string;
   betterMove?: { row: number; col: number };
+}
+
+export interface GameNotification {
+  id: string;
+  title: string;
+  content: string;
+  type: 'update' | 'event' | 'reward' | 'system';
+  version?: string;
+  isPinned?: boolean;
+  timestamp: string;
+  isRead?: boolean;
+  rewardCoins?: number;
+  claimed?: boolean;
+}
+
+export interface PlayerLogEntry {
+  id: string;
+  name: string;
+  email?: string;
+  avatar: string;
+  elo: number;
+  level: number;
+  coins: number;
+  gems: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winStreak: number;
+  status: 'active' | 'banned';
+  createdAt: string;
+  lastActiveAt: string;
+}
+
+export interface AdminMatchLog {
+  id: string;
+  playerXId: string;
+  playerXName: string;
+  playerOId: string;
+  playerOName: string;
+  winner: 'X' | 'O' | 'draw';
+  turnsCount: number;
+  gameMode: string;
+  roomCode?: string;
+  createdAt: string;
 }

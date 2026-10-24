@@ -1,0 +1,45 @@
+import { GameNotification } from '../types/game';
+
+export const INITIAL_NOTIFICATIONS: GameNotification[] = [
+  {
+    id: 'notif_update_270',
+    title: 'Cập Nhật Phiên Bản v2.7.0: Đấu Với Bạn Bè & Nâng Cấp Hệ Thống',
+    content: 'Chào mừng các kỳ thủ! Phiên bản v2.7.0 chính thức ra mắt với hàng loạt tính năng đột phá: \n• Chế độ Tạo Phòng & Ghép Trận Bạn Bè qua mã phòng bí mật 6 ký tự.\n• Chế độ Đấu 2 Người trên cùng thiết bị (Pass & Play).\n• Tối ưu hóa thuật toán AI Minimax Alpha-Beta nâng cao năng lực đọc thế cờ.\n• Trung tâm Thông Báo Cập Nhật & Quà tặng sự kiện trực tiếp trong game.',
+    type: 'update',
+    version: 'v2.7.0',
+    isPinned: true,
+    timestamp: '2026-10-23T22:30:00Z',
+    isRead: false,
+    rewardCoins: 250,
+    claimed: false,
+  },
+  {
+    id: 'notif_season_2026',
+    title: 'Khởi Tranh Mùa Giải Kỳ Vương Đại Chiến 2026',
+    content: 'Mùa giải xếp hạng ELO toàn quốc chính thức mở màn! Tham gia đấu trực tuyến để leo lên Top 10 Bảng Vàng. Kỳ thủ đạt mốc 2000 ELO sẽ nhận ngay Danh Hiệu Độc Quyền và 5,000 Xu thưởng.',
+    type: 'event',
+    isPinned: false,
+    timestamp: '2026-10-22T08:00:00Z',
+    isRead: false,
+  },
+  {
+    id: 'notif_daily_tactics',
+    title: 'Bí Quyết Kỳ Đạo: Tuyệt Kỹ Bẻ Gãy Bẫy Tứ Tam',
+    content: 'Nước cờ Tứ Tam (Four-Three Fork) là vũ khí sát thủ nguy hiểm nhất trong cờ Caro. Để phòng thủ thành công, hãy luôn chủ động kiểm soát các giao điểm đường chéo và chặn ngay khi đối phương vừa hình thành chuỗi 3 cờ!',
+    type: 'system',
+    isPinned: false,
+    timestamp: '2026-10-21T12:00:00Z',
+    isRead: true,
+  },
+  {
+    id: 'notif_welcome_gift',
+    title: 'Quà Chào Mừng Kỳ Thủ Mới Gia Nhập',
+    content: 'Cảm ơn bạn đã đồng hành cùng Caro Master AI! Nhận ngay 100 Xu khởi đầu để mua sắm mặt bàn cờ Gỗ Trúc Cổ Điển và các hiệu ứng quân cờ đặc sắc.',
+    type: 'reward',
+    isPinned: false,
+    timestamp: '2026-10-20T10:00:00Z',
+    isRead: true,
+    rewardCoins: 100,
+    claimed: true,
+  },
+];

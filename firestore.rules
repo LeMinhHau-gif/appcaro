@@ -17,6 +17,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "leminhhaukrb16@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
     function isValidId(id) {
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -43,17 +50,17 @@ service cloud.firestore {
       allow get: if isValidId(userId);
       allow list: if isSignedIn();
 
-      allow create: if isOwner(userId) &&
+      allow create: if (isOwner(userId) || isAdmin()) &&
                        isValidId(userId) &&
                        isValidUserProfile(incoming()) &&
                        incoming().id == userId;
 
-      allow update: if isOwner(userId) &&
+      allow update: if (isOwner(userId) || isAdmin()) &&
                        isValidId(userId) &&
                        isValidUserProfile(incoming()) &&
                        incoming().id == existing().id;
 
-      allow delete: if false;
+      allow delete: if isAdmin() && isValidId(userId);
     }
 
     // Validation for GameMatch
@@ -71,10 +78,22 @@ service cloud.firestore {
 
       allow create: if isSignedIn() &&
                        isValidId(matchId) &&
-                       isValidGameMatch(incoming()) &&
-                       (incoming().playerXId == request.auth.uid || (incoming().playerOId is string && incoming().playerOId == request.auth.uid));
+                       isValidGameMatch(incoming());
 
-      allow update, delete: if false;
+      allow update, delete: if isAdmin();
+    }
+
+    // System Notifications collection (Updates, Game versions, Events)
+    match /system_notifications/{notifId} {
+      allow read: if isValidId(notifId);
+      allow write: if isAdmin() && isValidId(notifId);
+    }
+
+    // Player activity sessions logs (Exclusive to Admin)
+    match /player_sessions/{sessionId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && isValidId(sessionId);
+      allow update, delete: if isAdmin();
     }
   }
 }

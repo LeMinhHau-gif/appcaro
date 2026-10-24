@@ -198,7 +198,7 @@ export const GameScreen: React.FC = () => {
 
   // AI or Simulated Online Opponent Turn Loop
   useEffect(() => {
-    if (activePlayer === opponentPlayer && !isGameOver && !isAiThinking.current) {
+    if (mode !== 'pass_and_play' && activePlayer === opponentPlayer && !isGameOver && !isAiThinking.current) {
       isAiThinking.current = true;
 
       // Realistic thinking delay between 350ms and 750ms
@@ -229,13 +229,37 @@ export const GameScreen: React.FC = () => {
 
   // User taps cell
   const handleCellClick = (row: number, col: number) => {
-    if (activePlayer !== userPlayer || isGameOver) return;
+    if (isGameOver) return;
+    if (mode === 'pass_and_play') {
+      makeMove(row, col, activePlayer);
+      return;
+    }
+    if (activePlayer !== userPlayer) return;
     makeMove(row, col, userPlayer);
   };
 
   // Undo move
   const handleUndo = () => {
-    if (activePlayer !== userPlayer || moveHistory.length < 2 || isGameOver) return;
+    if (isGameOver) return;
+
+    if (mode === 'pass_and_play') {
+      if (moveHistory.length < 1) return;
+      soundManager.playButtonClick();
+      const newHistory = moveHistory.slice(0, -1);
+      const newBoard = createEmptyBoard();
+      newHistory.forEach(m => {
+        newBoard[m.row][m.col] = m.player;
+      });
+      setBoard(newBoard);
+      setMoveHistory(newHistory);
+      const prevPlayer = activePlayer === 'X' ? 'O' : 'X';
+      setActivePlayer(prevPlayer);
+      setTimeLeft(maxTime);
+      setHintCell(null);
+      return;
+    }
+
+    if (activePlayer !== userPlayer || moveHistory.length < 2) return;
 
     soundManager.playButtonClick();
     // Rollback last 2 moves (AI move and Player move)
@@ -262,12 +286,13 @@ export const GameScreen: React.FC = () => {
 
   // AI Hint
   const handleHint = () => {
-    if (activePlayer !== userPlayer || isGameOver) return;
+    if (isGameOver) return;
+    if (mode !== 'pass_and_play' && activePlayer !== userPlayer) return;
 
     if (user.coins >= 10) {
       addCoins(-10);
       soundManager.playHintSound();
-      const hint = getSuggestedMove(board, userPlayer, 'grandmaster');
+      const hint = getSuggestedMove(board, activePlayer, 'grandmaster');
       setHintCell({ row: hint.row, col: hint.col });
     }
   };
@@ -348,7 +373,7 @@ export const GameScreen: React.FC = () => {
           lastMove={lastMove}
           winningLine={winningLine}
           hintCell={hintCell}
-          isInteractive={activePlayer === userPlayer && !isGameOver}
+          isInteractive={!isGameOver && (mode === 'pass_and_play' || activePlayer === userPlayer)}
           activePlayer={activePlayer}
         />
       </main>
@@ -358,8 +383,8 @@ export const GameScreen: React.FC = () => {
         onUndo={handleUndo}
         onHint={handleHint}
         onResign={handleResign}
-        canUndo={activePlayer === userPlayer && moveHistory.length >= 2 && !isGameOver}
-        canHint={activePlayer === userPlayer && user.coins >= 10 && !isGameOver}
+        canUndo={!isGameOver && (mode === 'pass_and_play' ? moveHistory.length >= 1 : (activePlayer === userPlayer && moveHistory.length >= 2))}
+        canHint={!isGameOver && (mode === 'pass_and_play' || activePlayer === userPlayer) && user.coins >= 10}
         onSendEmoji={handleSendEmoji}
         onSendChat={handleSendChat}
       />

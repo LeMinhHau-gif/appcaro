@@ -14,11 +14,12 @@ import {
   Shield,
   Play,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { soundManager } from '../../engine/audioEngine';
 
 export const HomeScreen: React.FC = () => {
-  const { user, startAiMatch, setActiveTab, setShowAuthModal } = useGame();
+  const { user, startAiMatch, setActiveTab, setShowAuthModal, setShowFriendModal } = useGame();
   const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty>('medium');
 
   const difficulties: { id: AIDifficulty; label: string; desc: string; color: string; badge: string }[] = [
@@ -132,26 +133,26 @@ export const HomeScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* 3 Quick Game Modes Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* 4 Quick Game Modes Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {/* Campaign Map Card */}
         <button
           onClick={() => {
             setActiveTab('campaign');
             soundManager.playButtonClick();
           }}
-          className="p-3.5 rounded-3xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-teal-500/40 text-left transition-all group flex flex-col justify-between"
+          className="p-3 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-teal-500/40 text-left transition-all group flex flex-col justify-between"
         >
           <div>
-            <div className="w-9 h-9 rounded-2xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30 mb-2.5 group-hover:scale-105 transition-transform">
-              <Compass size={18} />
+            <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30 mb-2 group-hover:scale-105 transition-transform">
+              <Compass size={17} />
             </div>
-            <h3 className="text-xs sm:text-sm font-bold text-white mb-0.5">Vượt Ải Chiến Dịch</h3>
-            <p className="text-[11px] text-slate-400 mb-2">50 ải cờ trải qua 5 cõi võ lâm cờ vây.</p>
+            <h3 className="text-xs font-bold text-white mb-0.5">Vượt Ải Cờ</h3>
+            <p className="text-[10px] text-slate-400 mb-2">50 ải 5 cõi võ lâm.</p>
           </div>
-          <div className="flex items-center justify-between text-xs font-semibold text-teal-400 pt-2 border-t border-slate-800/80">
-            <span>Đã mở: {user.unlockedStages.length}/50 ải</span>
-            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-teal-400 pt-1.5 border-t border-slate-800/80">
+            <span>{user.unlockedStages.length}/50 ải</span>
+            <ChevronRight size={13} className="group-hover:translate-x-1 transition-transform" />
           </div>
         </button>
 
@@ -161,18 +162,39 @@ export const HomeScreen: React.FC = () => {
             setActiveTab('multiplayer');
             soundManager.playButtonClick();
           }}
-          className="p-3.5 rounded-3xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/40 text-left transition-all group flex flex-col justify-between"
+          className="p-3 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/40 text-left transition-all group flex flex-col justify-between"
         >
           <div>
-            <div className="w-9 h-9 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 mb-2.5 group-hover:scale-105 transition-transform">
-              <Swords size={18} />
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 mb-2 group-hover:scale-105 transition-transform">
+              <Swords size={17} />
             </div>
-            <h3 className="text-xs sm:text-sm font-bold text-white mb-0.5">Xếp Hạng ELO Online</h3>
-            <p className="text-[11px] text-slate-400 mb-2">Ghép trận nhanh với kỳ thủ cùng cấp độ.</p>
+            <h3 className="text-xs font-bold text-white mb-0.5">Đấu Xếp Hạng</h3>
+            <p className="text-[10px] text-slate-400 mb-2">Ghép trận nhanh ELO.</p>
           </div>
-          <div className="flex items-center justify-between text-xs font-semibold text-cyan-400 pt-2 border-t border-slate-800/80">
-            <span>Hiện tại: {user.elo} ELO</span>
-            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-cyan-400 pt-1.5 border-t border-slate-800/80">
+            <span>{user.elo} ELO</span>
+            <ChevronRight size={13} className="group-hover:translate-x-1 transition-transform" />
+          </div>
+        </button>
+
+        {/* Play with Friends Card */}
+        <button
+          onClick={() => {
+            setShowFriendModal(true);
+            soundManager.playButtonClick();
+          }}
+          className="p-3 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/40 text-left transition-all group flex flex-col justify-between"
+        >
+          <div>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 mb-2 group-hover:scale-105 transition-transform">
+              <Users size={17} />
+            </div>
+            <h3 className="text-xs font-bold text-white mb-0.5">Đấu Bạn Bè</h3>
+            <p className="text-[10px] text-slate-400 mb-2">Mã phòng & cùng máy.</p>
+          </div>
+          <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-400 pt-1.5 border-t border-slate-800/80">
+            <span>2 Người Chơi</span>
+            <ChevronRight size={13} className="group-hover:translate-x-1 transition-transform" />
           </div>
         </button>
 
@@ -182,18 +204,18 @@ export const HomeScreen: React.FC = () => {
             setActiveTab('puzzles');
             soundManager.playButtonClick();
           }}
-          className="p-3.5 rounded-3xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-left transition-all group flex flex-col justify-between"
+          className="p-3 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-left transition-all group flex flex-col justify-between"
         >
           <div>
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 mb-2.5 group-hover:scale-105 transition-transform">
-              <BrainCircuit size={18} />
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 mb-2 group-hover:scale-105 transition-transform">
+              <BrainCircuit size={17} />
             </div>
-            <h3 className="text-xs sm:text-sm font-bold text-white mb-0.5">Giải Đố Thế Cờ</h3>
-            <p className="text-[11px] text-slate-400 mb-2">Tìm đòn sát thủ "Mate in 2/3" nhận xu.</p>
+            <h3 className="text-xs font-bold text-white mb-0.5">Giải Đố Thế Cờ</h3>
+            <p className="text-[10px] text-slate-400 mb-2">Sát thủ Mate in 2/3.</p>
           </div>
-          <div className="flex items-center justify-between text-xs font-semibold text-amber-400 pt-2 border-t border-slate-800/80">
-            <span>Đã giải: {user.solvedPuzzles.length} thế</span>
-            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-amber-400 pt-1.5 border-t border-slate-800/80">
+            <span>{user.solvedPuzzles.length} Đã giải</span>
+            <ChevronRight size={13} className="group-hover:translate-x-1 transition-transform" />
           </div>
         </button>
       </div>

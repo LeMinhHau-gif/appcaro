@@ -1,10 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserProfile, AIDifficulty, GameMode, OpponentProfile, CampaignStage, PuzzleDefinition, DailyQuest } from '../types/game';
+import {
+  UserProfile,
+  AIDifficulty,
+  GameMode,
+  OpponentProfile,
+  CampaignStage,
+  PuzzleDefinition,
+  DailyQuest,
+  GameNotification,
+} from '../types/game';
 import { INITIAL_DAILY_QUESTS } from '../data/questsAndShop';
+import { INITIAL_NOTIFICATIONS } from '../data/notifications';
 import { soundManager } from '../engine/audioEngine';
 import { auth, googleProvider, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore';
 
 interface GameContextType {
   user: UserProfile;
@@ -17,10 +27,26 @@ interface GameContextType {
   quests: DailyQuest[];
   claimQuestReward: (questId: string) => void;
   recordQuestProgress: (questId: string, amount?: number) => void;
+  // Notifications
+  notifications: GameNotification[];
+  unreadNotificationsCount: number;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  claimNotificationReward: (id: string) => void;
+  broadcastNotification: (notif: GameNotification) => void;
+  // Modals
   showAuthModal: boolean;
   setShowAuthModal: (show: boolean) => void;
+  showAdminModal: boolean;
+  setShowAdminModal: (show: boolean) => void;
+  showNotificationModal: boolean;
+  setShowNotificationModal: (show: boolean) => void;
+  showFriendModal: boolean;
+  setShowFriendModal: (show: boolean) => void;
+  // Auth
   loginWithGoogle: () => Promise<boolean>;
   logout: () => Promise<void>;
+  isAdmin: boolean;
   // Active match launch
   activeGameSession: {
     mode: GameMode;
@@ -28,11 +54,15 @@ interface GameContextType {
     opponent: OpponentProfile;
     stage?: CampaignStage;
     puzzle?: PuzzleDefinition;
+    roomCode?: string;
+    isPassAndPlay?: boolean;
   } | null;
   startAiMatch: (difficulty: AIDifficulty) => void;
   startCampaignStage: (stage: CampaignStage) => void;
   startPuzzleMatch: (puzzle: PuzzleDefinition) => void;
   startPvPMatch: (timeLimitSec: number) => void;
+  startFriendRoomMatch: (roomCode: string, isHost: boolean, timeLimitSec: number) => void;
+  startPassAndPlayMatch: (timeLimitSec: number) => void;
   exitToHome: () => void;
   // Profile & Currency updates
   addCoins: (amount: number) => void;
@@ -51,6 +81,7 @@ interface GameContextType {
 
 const STORAGE_KEY = 'caro_master_user_v1';
 const QUESTS_KEY = 'caro_master_quests_v1';
+const NOTIFS_KEY = 'caro_master_notifs_v1';
 
 const DEFAULT_USER: UserProfile = {
   id: 'usr_guest_' + Math.floor(Math.random() * 10000),
@@ -101,12 +132,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return INITIAL_DAILY_QUESTS;
   });
 
+  const [notifications, setNotifications] = useState<GameNotification[]>(() => {
+    try {
+      const saved = localStorage.getItem(NOTIFS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return INITIAL_NOTIFICATIONS;
+  });
+
   const [activeTab, setActiveTab] = useState<'home' | 'campaign' | 'multiplayer' | 'puzzles' | 'shop' | 'profile'>('home');
   const [isSoundMuted, setIsSoundMuted] = useState<boolean>(false);
   const [deviceViewMode, setDeviceViewMode] = useState<'mobile' | 'expanded'>('expanded');
+
+  // Modals state
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
+  const [showFriendModal, setShowFriendModal] = useState<boolean>(false);
 
   const [activeGameSession, setActiveGameSession] = useState<GameContextType['activeGameSession']>(null);
+
+  // Admin verification: leminhhaukrb16@gmail.com is supreme admin
+  const isAdmin =
+    user.email === 'leminhhaukrb16@gmail.com' ||
+    auth.currentUser?.email === 'leminhhaukrb16@gmail.com' ||
+    user.isAdmin === true;
 
   // Sync to local storage
   useEffect(() => {
@@ -121,6 +173,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   }, [quests]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTIFS_KEY, JSON.stringify(notifications));
+    } catch {}
+  }, [notifications]);
+
   // Sync authenticated user data to Firestore
   useEffect(() => {
     if (!user.isGuest && user.id && !user.id.startsWith('usr_guest_')) {
@@ -128,6 +186,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const payload = {
         id: user.id,
         name: user.name,
+        email: user.email || '',
         title: user.title,
         avatar: user.avatar,
         elo: user.elo,
@@ -142,6 +201,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         winStreak: user.winStreak,
         equippedTheme: user.equippedTheme,
         equippedSkin: user.equippedSkin,
+        lastActiveAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       setDoc(userRef, payload, { merge: true }).catch((err) => {
@@ -163,6 +223,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const fbUser = result.user;
       if (fbUser) {
         const userRef = doc(db, 'users', fbUser.uid);
+        const isAdminEmail = fbUser.email === 'leminhhaukrb16@gmail.com';
+
         try {
           const snap = await getDoc(userRef);
           if (snap.exists()) {
@@ -174,6 +236,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               name: data.name || fbUser.displayName || prev.name,
               avatar: fbUser.photoURL || data.avatar || prev.avatar,
               email: fbUser.email || undefined,
+              isAdmin: isAdminEmail,
               isGuest: false,
             }));
           } else {
@@ -181,6 +244,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newDoc = {
               id: fbUser.uid,
               name: fbUser.displayName || 'Kỳ Thủ Google',
+              email: fbUser.email || '',
               title: user.title,
               avatar: fbUser.photoURL || user.avatar,
               elo: user.elo,
@@ -195,6 +259,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               winStreak: user.winStreak,
               equippedTheme: user.equippedTheme,
               equippedSkin: user.equippedSkin,
+              createdAt: new Date().toISOString(),
+              lastActiveAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             };
             await setDoc(userRef, newDoc);
@@ -202,6 +268,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ...prev,
               ...newDoc,
               email: fbUser.email || undefined,
+              isAdmin: isAdminEmail,
               isGuest: false,
             }));
           }
@@ -230,7 +297,36 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: 'usr_guest_' + Math.floor(Math.random() * 10000),
       isGuest: true,
       email: undefined,
+      isAdmin: false,
     });
+  };
+
+  // Notification management
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+
+  const markNotificationRead = (id: string) => {
+    setNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
+    );
+  };
+
+  const markAllNotificationsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const claimNotificationReward = (id: string) => {
+    const target = notifications.find(n => n.id === id);
+    if (target && target.rewardCoins && !target.claimed) {
+      addCoins(target.rewardCoins);
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, claimed: true, isRead: true } : n))
+      );
+      soundManager.playRewardSound();
+    }
+  };
+
+  const broadcastNotification = (notif: GameNotification) => {
+    setNotifications(prev => [notif, ...prev]);
   };
 
   const addCoins = (amount: number) => {
@@ -255,7 +351,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         newNext = Math.round(newNext * 1.35);
       }
 
-      // Title progression based on level
       let title = prev.title;
       if (newLevel >= 20) title = 'Đại Sư Kỳ Thánh';
       else if (newLevel >= 15) title = 'Kỳ Vương Bất Bại';
@@ -294,6 +389,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (won) {
       recordQuestProgress('quest_win_match', 1);
+    }
+
+    // Record to Firestore matches collection
+    if (activeGameSession) {
+      try {
+        const matchData = {
+          id: 'match_' + Date.now(),
+          playerXId: user.id,
+          playerXName: user.name,
+          playerOId: activeGameSession.opponent.id,
+          playerOName: activeGameSession.opponent.name,
+          winner: isDraw ? 'draw' : won ? 'X' : 'O',
+          turnsCount,
+          gameMode: activeGameSession.mode,
+          roomCode: activeGameSession.roomCode || '',
+          createdAt: new Date().toISOString(),
+        };
+        addDoc(collection(db, 'matches'), matchData).catch(() => {});
+      } catch {}
     }
   };
 
@@ -490,6 +604,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const startFriendRoomMatch = (roomCode: string, isHost: boolean, timeLimitSec: number) => {
+    setActiveGameSession({
+      mode: 'friend',
+      difficulty: 'hard',
+      roomCode,
+      opponent: {
+        id: 'friend_' + roomCode,
+        name: isHost ? 'Bạn Bè (Mã: ' + roomCode + ')' : 'Chủ Phòng (' + roomCode + ')',
+        title: 'Kỳ Thủ Khách Mời',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=' + roomCode,
+        elo: user.elo + 30,
+        difficulty: 'hard',
+        isAi: false,
+        isFriend: true,
+      },
+    });
+  };
+
+  const startPassAndPlayMatch = (timeLimitSec: number) => {
+    setActiveGameSession({
+      mode: 'pass_and_play',
+      difficulty: 'medium',
+      isPassAndPlay: true,
+      opponent: {
+        id: 'local_player_2',
+        name: 'Người Chơi 2 (Quân O)',
+        title: 'Đấu Cùng Máy',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LocalOpponent',
+        elo: user.elo,
+        difficulty: 'medium',
+        isAi: false,
+      },
+    });
+  };
+
   const exitToHome = () => {
     setActiveGameSession(null);
   };
@@ -507,15 +656,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         quests,
         claimQuestReward,
         recordQuestProgress,
+        notifications,
+        unreadNotificationsCount,
+        markNotificationRead,
+        markAllNotificationsRead,
+        claimNotificationReward,
+        broadcastNotification,
         showAuthModal,
         setShowAuthModal,
+        showAdminModal,
+        setShowAdminModal,
+        showNotificationModal,
+        setShowNotificationModal,
+        showFriendModal,
+        setShowFriendModal,
         loginWithGoogle,
         logout,
+        isAdmin,
         activeGameSession,
         startAiMatch,
         startCampaignStage,
         startPuzzleMatch,
         startPvPMatch,
+        startFriendRoomMatch,
+        startPassAndPlayMatch,
         exitToHome,
         addCoins,
         addGems,

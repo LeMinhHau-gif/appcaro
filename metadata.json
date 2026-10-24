@@ -2,5 +2,7 @@
   "name": "Caro Master AI - Cờ Caro Thông Minh",
   "description": "AI-powered Gomoku & Caro app with Minimax Alpha-Beta engine, multiplayer matchmaking, 50-stage campaign map, daily tactical puzzles, and AI blunder tutor.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

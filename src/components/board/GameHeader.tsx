@@ -38,7 +38,9 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
     campaign: `Vượt Ải: ${opponent.name}`,
     puzzle: 'Thế Cờ Chiến Thuật',
     practice: 'Tự Luyện Tập',
-  }[gameMode];
+    friend: `Đấu Bạn Bè (${opponent.name})`,
+    pass_and_play: 'Đấu 2 Người Trên Cùng Máy',
+  }[gameMode] || 'Trận Đấu Gomoku';
 
   return (
     <div className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 py-2.5">
