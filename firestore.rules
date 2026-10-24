@@ -1,0 +1,80 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation for UserProfile
+    function isValidUserProfile(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.elo is number && data.elo >= 0 && data.elo <= 5000 &&
+             data.coins is number && data.coins >= 0 &&
+             data.level is number && data.level >= 1;
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if isSignedIn();
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().id == userId;
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().id == existing().id;
+
+      allow delete: if false;
+    }
+
+    // Validation for GameMatch
+    function isValidGameMatch(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.playerXId is string && data.playerXId.size() <= 128 &&
+             data.winner is string && data.winner in ['X', 'O', 'draw'] &&
+             data.turnsCount is number && data.turnsCount >= 0;
+    }
+
+    // Matches collection
+    match /matches/{matchId} {
+      allow get: if isValidId(matchId);
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+                       isValidId(matchId) &&
+                       isValidGameMatch(incoming()) &&
+                       (incoming().playerXId == request.auth.uid || (incoming().playerOId is string && incoming().playerOId == request.auth.uid));
+
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing player statistics, ELO ranking, coins, and unlocks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 100 },
+        "avatar": { "type": "string", "maxLength": 500 },
+        "elo": { "type": "number" },
+        "coins": { "type": "number" },
+        "gems": { "type": "number" },
+        "stars": { "type": "number" },
+        "level": { "type": "number" },
+        "xp": { "type": "number" },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "draws": { "type": "number" },
+        "winStreak": { "type": "number" },
+        "equippedTheme": { "type": "string", "maxLength": 50 },
+        "equippedSkin": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "elo", "coins", "level"]
+    },
+    "GameMatch": {
+      "title": "GameMatch",
+      "description": "Record of a completed Gomoku game match",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "playerXId": { "type": "string", "maxLength": 128 },
+        "playerOId": { "type": "string", "maxLength": 128 },
+        "winner": { "type": "string", "enum": ["X", "O", "draw"] },
+        "turnsCount": { "type": "number" },
+        "gameMode": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "playerXId", "winner", "turnsCount"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Public profile and game progression data for each player"
+    },
+    "/matches/{matchId}": {
+      "schema": "GameMatch",
+      "description": "History of game matches played"
+    }
+  }
+}
