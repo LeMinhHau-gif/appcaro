@@ -40,6 +40,8 @@ export const TopNavBar: React.FC = () => {
     setShowNotificationModal,
     showFriendModal,
     setShowFriendModal,
+    pendingFriendRoomCode,
+    setPendingFriendRoomCode,
     notifications,
     unreadNotificationsCount,
     markNotificationRead,
@@ -247,7 +249,11 @@ export const TopNavBar: React.FC = () => {
       )}
       {showFriendModal && (
         <FriendMatchModal
-          onClose={() => setShowFriendModal(false)}
+          initialRoomCode={pendingFriendRoomCode || undefined}
+          onClose={() => {
+            setShowFriendModal(false);
+            setPendingFriendRoomCode(null);
+          }}
           onStartRoomMatch={startFriendRoomMatch}
           onStartPassAndPlay={startPassAndPlayMatch}
         />

@@ -59,6 +59,8 @@ interface GameContextType {
   setShowNotificationModal: (show: boolean) => void;
   showFriendModal: boolean;
   setShowFriendModal: (show: boolean) => void;
+  pendingFriendRoomCode: string | null;
+  setPendingFriendRoomCode: (code: string | null) => void;
   // Auth
   loginWithGoogle: (emailFallback?: string, nameFallback?: string) => Promise<boolean>;
   loginWithPhone: (phoneNumber: string, name?: string, isNewRegister?: boolean) => Promise<boolean>;
@@ -171,6 +173,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [adminTargetPlayer, setAdminTargetPlayer] = useState<PlayerLogEntry | null>(null);
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
   const [showFriendModal, setShowFriendModal] = useState<boolean>(false);
+  const [pendingFriendRoomCode, setPendingFriendRoomCode] = useState<string | null>(null);
+
+  // Auto-detect ?room=CARO-XXXX from friend share link
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('room');
+      if (roomParam) {
+        setPendingFriendRoomCode(roomParam.toUpperCase());
+        setShowFriendModal(true);
+      }
+    } catch {}
+  }, []);
 
   const [activeGameSession, setActiveGameSession] = useState<GameContextType['activeGameSession']>(null);
 
@@ -990,6 +1005,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShowNotificationModal,
         showFriendModal,
         setShowFriendModal,
+        pendingFriendRoomCode,
+        setPendingFriendRoomCode,
         loginWithGoogle,
         loginWithPhone,
         loginWithFacebook,
